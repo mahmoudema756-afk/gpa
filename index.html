@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>نظام حساب الـ GPA الجامعي وإدارة الطلاب</title>
+  
+  <!-- منع وميض الشاشة في الوضع الليلي عند تحميل الصفحة -->
+  <script>
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  </script>
+
+  <!-- Google Fonts: Cairo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Canvas Confetti CDN للاحتفال بالمعدل المرتفع -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            cairo: ['Cairo', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: 'Cairo', sans-serif;
+    }
+
+    /* أنيميشن حركة الخلفية العائمة */
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+      50% { transform: translateY(-25px) rotate(6deg) scale(1.05); }
+    }
+    @keyframes floatReverse {
+      0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+      50% { transform: translateY(25px) rotate(-6deg) scale(1.04); }
+    }
+    .animate-float-slow {
+      animation: floatSlow 12s ease-in-out infinite;
+    }
+    .animate-float-reverse {
+      animation: floatReverse 14s ease-in-out infinite;
+    }
+
+    /* أنيميشن الظهور المتدرج للبطاقات والنوافذ */
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.95) translateY(10px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .animate-pop-in {
+      animation: popIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* أنيميشن صفوف جدول المواد المتتالية */
+    @keyframes rowFadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .course-row-animate {
+      animation: rowFadeIn 0.35s ease-out forwards;
+    }
+
+    /* أنيميشن التدرج اللوني المتحرك في الفوتر والبطاقات */
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .animate-gradient-shift {
+      background-size: 200% 200%;
+      animation: gradientShift 4s ease infinite;
+    }
+
+    /* تخصيص شريط التمرير */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .dark .custom-scrollbar::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      body {
+        background: white !important;
+        color: black !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white transition-colors duration-300 relative overflow-x-hidden">
+
+  <!-- إضاءة خلفية حركية عائمة ومتحركة (Ambient Animated Background Orbs) -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <div class="absolute -top-32 -right-32 w-80 sm:w-96 h-80 sm:h-96 bg-blue-500/10 dark:bg-blue-600/15 rounded-full blur-3xl animate-float-slow"></div>
+    <div class="absolute top-1/3 -left-32 w-80 sm:w-[450px] h-80 sm:h-[450px] bg-indigo-500/10 dark:bg-indigo-600/15 rounded-full blur-3xl animate-float-reverse"></div>
+    <div class="absolute -bottom-32 right-1/4 w-80 sm:w-[400px] h-80 sm:h-[400px] bg-emerald-500/10 dark:bg-teal-600/15 rounded-full blur-3xl animate-float-slow"></div>
+  </div>
+
+  <!-- شريط التنقل العلوي Navbar - متجاوب تماماً مع الشاشات الصغيرة -->
+  <header class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200/80 dark:border-slate-800 shadow-sm no-print transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14 sm:h-20">
+        
+        <!-- الشعار والعنوان مع تحسين للموبايل -->
+        <div class="flex items-center space-x-2 sm:space-x-3 space-x-reverse group cursor-pointer">
+          <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform duration-300">
+            <i class="fa-solid fa-graduation-cap text-lg sm:text-2xl"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5 sm:gap-2">
+              <span class="font-black text-sm sm:text-xl text-slate-900 dark:text-white tracking-tight">نظام الـ GPA</span>
+              <span class="px-1.5 py-0.5 text-[10px] sm:text-xs font-bold rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">لائحة معتمدة</span>
+            </div>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">حساب دقيق للنقاط والدرجات وفق لائحة الكلية الرسمية</p>
+          </div>
+        </div>
+
+        <!-- أزرار الإجراءات السريعة وحالة الطالب -->
+        <div class="flex items-center gap-1.5 sm:gap-3">
+          <!-- زر دليل جدول الدرجات -->
+          <button onclick="openModal('gradingScaleModal')" class="inline-flex items-center gap-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-transparent dark:border-slate-700 transition active:scale-95 shadow-sm">
+            <i class="fa-solid fa-table-cells text-blue-600 dark:text-blue-400"></i>
+            <span class="hidden md:inline">جدول اللائحة</span>
+          </button>
+
+          <!-- زر تفعيل وضع الدارك مود (الوضع الليلي) -->
+          <button id="themeToggleBtn" onclick="toggleDarkMode()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-amber-400 border border-transparent dark:border-slate-700 flex items-center justify-center transition active:scale-95 shadow-sm" title="تبديل الوضع الليلي / الفاتح">
+            <i class="fa-solid fa-moon text-sm sm:text-base transition-transform duration-500" id="themeIcon"></i>
+          </button>
+
+          <!-- معلومات الطالب الحالي وزر تبديل البروفايل -->
+          <div id="authNavSection" class="flex items-center gap-1.5 sm:gap-2">
+            <!-- يظهر برمجياً عند تسجيل الدخول -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- المحتوى الرئيسي -->
+  <main class="flex-grow max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 w-full relative z-10">
+
+    <!-- شاشة الترحيب وتسجيل الدخول / إنشاء بروفايل (تظهر عند عدم اختيار طالب) -->
+    <div id="loginScreen" class="max-w-md mx-auto my-4 sm:my-8 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-5 sm:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-blue-500/5 animate-pop-in transition-all duration-300">
+      <div class="text-center mb-5 sm:mb-6">
+        <div class="w-14 h-14 sm:w-16 sm:h-16 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-2.5 sm:mb-3 text-xl sm:text-2xl shadow-inner border border-blue-100 dark:border-blue-900">
+          <i class="fa-solid fa-user-graduate"></i>
+        </div>
+        <h2 class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">بوابة الطلاب</h2>
+        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">سجّل دخولك أو أنشئ بروفايل لحفظ ومتابعة معدلك التراكمي</p>
+      </div>
+
+      <!-- تبديل بين تسجيل دخول وإنشاء حساب -->
+      <div class="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 mb-5">
+        <button id="tabLoginBtn" onclick="switchAuthTab('login')" class="flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm">
+          تسجيل الدخول
+        </button>
+        <button id="tabRegisterBtn" onclick="switchAuthTab('register')" class="flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+          إنشاء بروفايل جديد
+        </button>
+      </div>
+
+      <!-- نموذج تسجيل الدخول -->
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-3.5 sm:space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">اسم الطالب المسجل</label>
+          <div class="relative">
+            <i class="fa-regular fa-user absolute right-3.5 top-3.5 text-slate-400 text-sm"></i>
+            <input type="text" id="loginName" required placeholder="أدخل اسمك كما سجلته" class="w-full pr-10 pl-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">كلمة المرور</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute right-3.5 top-3.5 text-slate-400 text-sm"></i>
+            <input type="password" id="loginPassword" required placeholder="أدخل كلمة المرور الخاصة بك" class="w-full pr-10 pl-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 active:scale-[0.98] transition-all duration-200 min-h-[44px] flex items-center justify-center">
+          <i class="fa-solid fa-right-to-bracket ml-2"></i> دخول إلى حسابي
+        </button>
+
+        <!-- قائمة الطلاب المحفوظين سريعة للاختيار -->
+        <div id="quickProfilesContainer" class="pt-3 border-t border-slate-100 dark:border-slate-800 hidden">
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">أو اختر بروفايل محفوظ على هذا الجهاز:</p>
+          <div id="quickProfilesList" class="flex flex-wrap gap-1.5"></div>
+        </div>
+      </form>
+
+      <!-- نموذج إنشاء بروفايل -->
+      <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-3.5 sm:space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">اسم الطالب ثلاثي / رباعي</label>
+          <div class="relative">
+            <i class="fa-regular fa-id-card absolute right-3.5 top-3.5 text-slate-400 text-sm"></i>
+            <input type="text" id="regName" required placeholder="مثال: محمود عماد الدين" class="w-full pr-10 pl-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">كلمة مرور من اختيارك</label>
+          <div class="relative">
+            <i class="fa-solid fa-key absolute right-3.5 top-3.5 text-slate-400 text-sm"></i>
+            <input type="password" id="regPassword" required placeholder="أي باسوورد تختاره لتأمين درجاتك" class="w-full pr-10 pl-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition">
+          </div>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">يمكنك اختيار أي كلمة سر تناسبك (أرقام أو حروف)</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">تأكيد كلمة المرور</label>
+          <div class="relative">
+            <i class="fa-solid fa-check-double absolute right-3.5 top-3.5 text-slate-400 text-sm"></i>
+            <input type="password" id="regPasswordConfirm" required placeholder="أعد كتابة كلمة المرور" class="w-full pr-10 pl-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all duration-200 min-h-[44px] flex items-center justify-center">
+          <i class="fa-solid fa-user-plus ml-2"></i> إنشاء البروفايل وبدء الحساب
+        </button>
+      </form>
+    </div>
+
+    <!-- لوحة التحكم وحساب الـ GPA (تظهر بعد تسجيل الدخول) -->
+    <div id="dashboardScreen" class="hidden space-y-4 sm:space-y-6 animate-pop-in">
+
+      <!-- بطاقة ترحيب وشريط الطالب النشط مع دعم متكامل لشاشات الموبايل -->
+      <div class="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl relative overflow-hidden border border-slate-800 transition-all duration-300">
+        <div class="absolute -left-10 -bottom-10 w-40 sm:w-56 h-40 sm:h-56 bg-blue-500/20 rounded-full blur-3xl pointer-events-none animate-float-slow"></div>
+        <div class="absolute right-10 -top-10 w-40 sm:w-56 h-40 sm:h-56 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none animate-float-reverse"></div>
+        
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6 relative z-10">
+          <div>
+            <div class="flex items-center gap-2.5 sm:gap-3">
+              <span class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-blue-600/30 border border-blue-400/30 flex items-center justify-center text-lg sm:text-xl text-blue-300 shadow-inner">
+                <i class="fa-solid fa-user-graduate"></i>
+              </span>
+              <div>
+                <h1 class="text-lg sm:text-2xl font-black">أهلاً بك، <span id="currentStudentName" class="text-blue-300 font-bold">طالب</span>! 👋</h1>
+                <p class="text-[11px] sm:text-sm text-slate-300">السجل الأكاديمي الشامل وحساب المعدل التراكمي (GPA)</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- شبكة أزرار العمليات متناسقة للموبايل والشاشات الكبيرة -->
+          <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto pt-1 sm:pt-0 border-t border-slate-800/80 sm:border-t-0">
+            <button onclick="openAddCourseModal()" class="col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/30 active:scale-95 transition-all">
+              <i class="fa-solid fa-plus"></i> إضافة مادة جديدة
+            </button>
+            <button onclick="syncWithGoogleSheet()" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/30 active:scale-95 transition-all" title="مزامنة فورية مع جوجل شيت">
+              <i class="fa-solid fa-rotate text-xs" id="syncIcon"></i> مزامنة شيت
+            </button>
+            <button onclick="triggerConfetti()" class="inline-flex items-center justify-center gap-1 px-3 py-2 sm:py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-bold shadow-md shadow-amber-500/25 active:scale-95 transition-all" title="احتفل بدرجاتك!">
+              <span>🎉</span> احتفال
+            </button>
+            <button onclick="printReport()" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-semibold backdrop-blur active:scale-95 transition-all" title="طباعة أو حفظ السجل كـ PDF">
+              <i class="fa-solid fa-print text-xs"></i> طباعة
+            </button>
+            <button onclick="handleLogout()" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 text-xs sm:text-sm font-semibold active:scale-95 transition-all" title="تسجيل الخروج">
+              <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i> خروج
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- كروت الإحصائيات الأكاديمية (GPA Stats Cards) - متجاوبة وواضحة على شاشات الهاتف -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        
+        <!-- المعدل التراكمي GPA -->
+        <div class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300">
+          <div class="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span class="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">المعدل (GPA)</span>
+            <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs sm:text-sm font-bold">
+              4.0
+            </div>
+          </div>
+          <div class="flex items-baseline gap-1 sm:gap-2">
+            <span id="statGPA" class="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">0.00</span>
+            <span class="text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-500">/ 4.0</span>
+          </div>
+          
+          <!-- شريط تقدم بصري متحرك لمعدل الـ GPA -->
+          <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-2 sm:mt-3 overflow-hidden">
+            <div id="statGPABar" class="bg-gradient-to-r from-blue-600 to-indigo-500 h-full rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+          </div>
+
+          <div class="mt-2.5 sm:mt-3 flex items-center justify-between text-[10px] sm:text-xs">
+            <span id="statStanding" class="font-bold text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/40 truncate max-w-[85px] sm:max-w-none">لم تحدد مواد</span>
+            <span id="statGradeLetter" class="font-bold text-slate-600 dark:text-slate-300">-</span>
+          </div>
+        </div>
+
+        <!-- النسبة المئوية العامة % -->
+        <div class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-300">
+          <div class="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span class="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">النسبة المئوية</span>
+            <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-percent"></i>
+            </div>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span id="statPercentage" class="text-2xl sm:text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">0.0%</span>
+          </div>
+
+          <!-- شريط تقدم بصري متحرك للنسبة المئوية -->
+          <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-2 sm:mt-3 overflow-hidden">
+            <div id="statPercBar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+          </div>
+
+          <div class="mt-2.5 sm:mt-3 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
+            <span>الدرجات:</span>
+            <span id="statMarksSummary" class="font-bold text-slate-700 dark:text-slate-200 truncate">0 / 0</span>
+          </div>
+        </div>
+
+        <!-- الساعات المعتمدة -->
+        <div class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-300">
+          <div class="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span class="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">الساعات المنجزة</span>
+            <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-clock"></i>
+            </div>
+          </div>
+          <div class="flex items-baseline gap-1 sm:gap-2">
+            <span id="statCompletedHours" class="text-2xl sm:text-4xl font-black text-purple-700 dark:text-purple-300 tracking-tight">0</span>
+            <span class="text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-500">ساعة</span>
+          </div>
+          <div class="mt-4 sm:mt-5 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
+            <span>المواد:</span>
+            <span id="statTotalCourses" class="font-bold text-slate-700 dark:text-slate-200">0</span>
+          </div>
+        </div>
+
+        <!-- إجمالي النقاط (Quality Points) -->
+        <div class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-300">
+          <div class="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span class="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">إجمالي النقاط</span>
+            <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-award"></i>
+            </div>
+          </div>
+          <div class="flex items-baseline gap-1 sm:gap-2">
+            <span id="statTotalPoints" class="text-2xl sm:text-4xl font-black text-amber-600 dark:text-amber-400 tracking-tight">0.0</span>
+            <span class="text-[10px] sm:text-xs font-semibold text-slate-400 dark:text-slate-500">نقطة</span>
+          </div>
+          <div class="mt-4 sm:mt-5 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
+            <span>المعادلة:</span>
+            <span class="font-semibold text-slate-600 dark:text-slate-300 font-mono text-[10px]">النقاط÷الساعات</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- قسم المواد المسجلة وقائمة الفصول -->
+      <div class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm p-4 sm:p-6 transition-all duration-300">
+        
+        <!-- شريط التحكم والتصفية أعلى القسم -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 sm:pb-5 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-book-bookmark text-blue-600 dark:text-blue-400 text-sm sm:text-base"></i>
+              المواد الدراسية المسجلة
+            </h3>
+            <p class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">يمكنك إضافة، تعديل، وحذف درجاتك وسيعاد حساب الـ GPA فوراً</p>
+          </div>
+
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <!-- فلتر الفصول -->
+            <select id="semesterFilter" onchange="filterCourses()" class="flex-1 sm:flex-none text-xs font-semibold px-3 py-2 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+              <option value="ALL">جميع الفصول</option>
+              <option value="الفصل 1">الفصل الأول</option>
+              <option value="الفصل 2">الفصل الثاني</option>
+              <option value="الفصل 3">الفصل الثالث</option>
+              <option value="الفصل 4">الفصل الرابع</option>
+              <option value="الفصل 5">الفصل الخامس</option>
+              <option value="الفصل 6">الفصل السادس</option>
+              <option value="الفصل 7">الفصل السابع</option>
+              <option value="الفصل 8">الفصل الثامن</option>
+              <option value="فصل صيفي">فصل صيفي</option>
+            </select>
+
+            <button onclick="openAddCourseModal()" class="text-xs font-bold px-3 py-2 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 rounded-xl border border-transparent dark:border-blue-800 transition active:scale-95 whitespace-nowrap">
+              <i class="fa-solid fa-plus ml-1"></i> مادة جديدة
+            </button>
+          </div>
+        </div>
+
+        <!-- حالة عدم وجود مواد -->
+        <div id="emptyCoursesState" class="py-12 sm:py-16 text-center">
+          <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-3 text-xl sm:text-2xl animate-soft-pulse">
+            <i class="fa-regular fa-folder-open"></i>
+          </div>
+          <h4 class="text-sm sm:text-base font-bold text-slate-700 dark:text-slate-200">لم تقم بإضافة أي مواد دراسية بعد</h4>
+          <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">ابدأ بإضافة المواد التي أنجزتها مع ساعاتها ودرجاتك لحساب المعدل التراكمي</p>
+          <button onclick="openAddCourseModal()" class="mt-4 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/25 active:scale-95 transition-all">
+            <i class="fa-solid fa-plus ml-1"></i> إضافة أول مادة
+          </button>
+        </div>
+
+        <!-- حاوية المواد (عرض بطاقات ذكية للشاشات الصغيرة + جدول متكامل للشاشات الكبيرة) -->
+        <div id="coursesTableWrapper" class="mt-3 sm:mt-4 hidden">
+          
+          <!-- 📱 1. عرض بطاقات الهواتف الذكية (Mobile Cards View) -->
+          <div id="coursesMobileCardsList" class="md:hidden space-y-3">
+            <!-- يتم تعبئتها ديناميكياً بواسطة JavaScript -->
+          </div>
+
+          <!-- 💻 2. جدول المواد للشاشات المتوسطة والكبيرة (Desktop Table View) -->
+          <div class="hidden md:block overflow-x-auto custom-scrollbar">
+            <table class="w-full text-right text-sm">
+              <thead>
+                <tr class="text-xs text-slate-400 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 font-semibold">
+                  <th class="py-3 px-3">#</th>
+                  <th class="py-3 px-3">اسم المادة</th>
+                  <th class="py-3 px-3">الفصل</th>
+                  <th class="py-3 px-3 text-center">الساعات</th>
+                  <th class="py-3 px-3 text-center">الدرجة</th>
+                  <th class="py-3 px-3 text-center">النسبة %</th>
+                  <th class="py-3 px-3 text-center">التقدير</th>
+                  <th class="py-3 px-3 text-center">النقاط (Points)</th>
+                  <th class="py-3 px-3 text-center">نقاط الجودة (Hrs×Pts)</th>
+                  <th class="py-3 px-3 text-center no-print">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="coursesTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                <!-- يتم ملؤها ديناميكياً بواسطة JavaScript -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- نافذة مودال: إضافة / تعديل مادة (Add/Edit Course Modal) -->
+  <div id="addCourseModal" class="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-4 transition-opacity">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 transform animate-pop-in max-h-[92vh] flex flex-col">
+      <div class="px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <h3 id="courseModalTitle" class="font-bold text-slate-800 dark:text-white text-sm sm:text-base flex items-center gap-2">
+          <i class="fa-solid fa-book-medical text-blue-600 dark:text-blue-400"></i> إضافة مادة دراسية جديدة
+        </h3>
+        <button onclick="closeModal('addCourseModal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-8 h-8 rounded-full flex items-center justify-center transition active:scale-95">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="courseForm" onsubmit="saveCourse(event)" class="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto custom-scrollbar">
+        <input type="hidden" id="courseEditId" value="">
+
+        <!-- اسم المادة -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">اسم المادة أو كود المقرر</label>
+          <input type="text" id="courseName" required placeholder="مثال: رياضيات 1، دوائر كهربية..." class="w-full px-3.5 sm:px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <!-- عدد الساعات المعتمدة -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">الساعات المعتمدة (Hours)</label>
+            <select id="courseCreditHours" onchange="onCreditHoursChanged()" required class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="1">1 ساعة (الدرجة: 50)</option>
+              <option value="2">2 ساعة (الدرجة: 100)</option>
+              <option value="3" selected>3 ساعات (الدرجة: 150)</option>
+              <option value="4">4 ساعات (الدرجة: 200)</option>
+              <option value="5">5 ساعات (الدرجة: 250)</option>
+              <option value="6">6 ساعات (الدرجة: 300)</option>
+            </select>
+          </div>
+
+          <!-- الفصل الدراسي -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">الفصل الدراسي</label>
+            <select id="courseSemester" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="الفصل 1">الفصل الأول</option>
+              <option value="الفصل 2">الفصل الثاني</option>
+              <option value="الفصل 3">الفصل الثالث</option>
+              <option value="الفصل 4">الفصل الرابع</option>
+              <option value="الفصل 5">الفصل الخامس</option>
+              <option value="الفصل 6">الفصل السادس</option>
+              <option value="الفصل 7">الفصل السابع</option>
+              <option value="الفصل 8">الفصل الثامن</option>
+              <option value="فصل صيفي">فصل صيفي</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- طريقة إدخال الدرجة -->
+        <div class="bg-blue-50/60 dark:bg-blue-950/30 p-3 sm:p-3.5 rounded-2xl border border-blue-100 dark:border-blue-900/60 transition-all">
+          <label class="block text-xs font-bold text-blue-900 dark:text-blue-300 mb-2">طريقة إدخال درجة المادة:</label>
+          <div class="grid grid-cols-3 gap-1.5 sm:gap-2 mb-3">
+            <button type="button" onclick="setGradeInputMode('mark')" id="modeMarkBtn" class="py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold rounded-lg border bg-blue-600 text-white border-blue-600 shadow-sm transition">بالدرجة (Mark)</button>
+            <button type="button" onclick="setGradeInputMode('percentage')" id="modePercBtn" class="py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold rounded-lg border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 transition">بالنسبة ( % )</button>
+            <button type="button" onclick="setGradeInputMode('letter')" id="modeLetterBtn" class="py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold rounded-lg border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 transition">بالتقدير (A, B)</button>
+          </div>
+
+          <!-- خيار 1: إدخال الدرجة بالدرجة الفعلية -->
+          <div id="inputFieldMark">
+            <div class="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mb-1">
+              <span>درجة الطالب:</span>
+              <span>الدرجة العظمى: <b id="maxMarkDisplay" class="text-blue-700 dark:text-blue-400 font-bold">150</b></span>
+            </div>
+            <input type="number" step="0.5" id="inputMark" oninput="calculateGradeFromMark()" placeholder="أدخل درجتك في المادة" class="w-full px-3.5 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+          </div>
+
+          <!-- خيار 2: إدخال النسبة المئوية -->
+          <div id="inputFieldPerc" class="hidden">
+            <div class="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mb-1">
+              <span>النسبة المئوية:</span>
+              <span>من 0% إلى 100%</span>
+            </div>
+            <div class="relative">
+              <input type="number" step="0.1" min="0" max="100" id="inputPercentage" oninput="calculateGradeFromPercentage()" placeholder="مثال: 85.5" class="w-full pl-8 pr-3.5 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+              <span class="absolute left-3 top-2 text-slate-400 font-bold">%</span>
+            </div>
+          </div>
+
+          <!-- خيار 3: إدخال التقدير المباشر -->
+          <div id="inputFieldLetter" class="hidden">
+            <div class="text-xs text-slate-600 dark:text-slate-400 mb-1">اختر التقدير:</div>
+            <select id="inputLetter" onchange="calculateGradeFromLetter()" class="w-full px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl text-base sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+              <option value="A+">A+ (نقاط: 4.0 | نسبة: 95 - 100%)</option>
+              <option value="A">A (نقاط: 4.0 | نسبة: 90 - 95%)</option>
+              <option value="A-">A- (نقاط: 3.6 | نسبة: 85 - 90%)</option>
+              <option value="B+">B+ (نقاط: 3.3 | نسبة: 80 - 85%)</option>
+              <option value="B">B (نقاط: 3.0 | نسبة: 75 - 80%)</option>
+              <option value="B-">B- (نقاط: 2.7 | نسبة: 72 - 75%)</option>
+              <option value="C+">C+ (نقاط: 2.3 | نسبة: 70 - 72%)</option>
+              <option value="C">C (نقاط: 2.0 | نسبة: 65 - 70%)</option>
+              <option value="C-">C- (نقاط: 1.7 | نسبة: 63 - 65%)</option>
+              <option value="D+">D+ (نقاط: 1.3 | نسبة: 62 - 63%)</option>
+              <option value="D">D (نقاط: 1.0 | نسبة: 60 - 62%)</option>
+              <option value="F">F (نقاط: 0.0 | راسب - أقل من 60%)</option>
+            </select>
+          </div>
+
+          <!-- نتيجة الحساب الفورية للمادة -->
+          <div class="mt-2.5 p-2.5 bg-white dark:bg-slate-800 rounded-xl border border-blue-200/80 dark:border-blue-900/60 flex items-center justify-between text-xs">
+            <div>
+              <span class="text-slate-500 dark:text-slate-400">التقدير:</span>
+              <span id="previewGrade" class="font-extrabold text-blue-700 dark:text-blue-300 text-sm mr-1">--</span>
+            </div>
+            <div>
+              <span class="text-slate-500 dark:text-slate-400">النقاط:</span>
+              <span id="previewPoints" class="font-bold text-slate-800 dark:text-slate-200 mr-1">0.0</span>
+            </div>
+            <div>
+              <span class="text-slate-500 dark:text-slate-400">الجودة:</span>
+              <span id="previewQualityPoints" class="font-bold text-emerald-600 dark:text-emerald-400 mr-1 font-mono">0.0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-1">
+          <button type="button" onclick="closeModal('addCourseModal')" class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+            إلغاء
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 active:scale-95 transition-all">
+            <i class="fa-solid fa-floppy-disk ml-1"></i> حفظ المادة
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- نافذة مودال: عرض جدول لائحة الـ GPA الرسمي (معتمد من الصورة) -->
+  <div id="gradingScaleModal" class="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm hidden items-center justify-center p-2.5 sm:p-4 transition-opacity">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 transform animate-pop-in">
+      <div class="px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div>
+          <h3 class="font-extrabold text-slate-900 dark:text-white text-sm sm:text-lg flex items-center gap-2">
+            <i class="fa-solid fa-graduation-cap text-blue-600 dark:text-blue-400"></i> جدول حساب الـ GPA - اللائحة الرسمية
+          </h3>
+          <p class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">GPA Calculations - UNION - لجنة شئون الطلاب</p>
+        </div>
+        <button onclick="closeModal('gradingScaleModal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-8 h-8 rounded-full flex items-center justify-center transition active:scale-95">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-3 sm:p-6 overflow-y-auto custom-scrollbar">
+        <div class="overflow-x-auto rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800">
+          <table class="w-full text-center text-[11px] sm:text-sm">
+            <thead class="bg-blue-50/70 dark:bg-blue-950/50 text-slate-700 dark:text-slate-200 font-bold border-b border-blue-100 dark:border-blue-900">
+              <tr>
+                <th rowspan="2" class="py-2.5 px-2 border-l border-blue-100 dark:border-blue-900">النسبة %</th>
+                <th rowspan="2" class="py-2.5 px-2 border-l border-blue-100 dark:border-blue-900">النقاط<br>(Points)</th>
+                <th rowspan="2" class="py-2.5 px-2 border-l border-blue-100 dark:border-blue-900">الرمز<br>(Grade)</th>
+                <th colspan="6" class="py-1.5 px-2 bg-blue-100/60 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200">الدرجات حسب عدد الساعات (Credit hours)</th>
+              </tr>
+              <tr class="bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 border-t border-amber-200/60 dark:border-amber-900/60 font-extrabold text-[10px] sm:text-xs">
+                <th class="py-1.5 px-1.5 border-l border-amber-200/60 dark:border-amber-900/60">1 س (50)</th>
+                <th class="py-1.5 px-1.5 border-l border-amber-200/60 dark:border-amber-900/60">2 س (100)</th>
+                <th class="py-1.5 px-1.5 border-l border-amber-200/60 dark:border-amber-900/60">3 س (150)</th>
+                <th class="py-1.5 px-1.5 border-l border-amber-200/60 dark:border-amber-900/60">4 س (200)</th>
+                <th class="py-1.5 px-1.5 border-l border-amber-200/60 dark:border-amber-900/60">5 س (250)</th>
+                <th class="py-1.5 px-1.5">6 س (300)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-800 dark:text-slate-200">
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"><td class="py-2 px-1.5 font-bold">100 - 95</td><td class="font-bold text-blue-600 dark:text-blue-400">4</td><td class="font-extrabold text-emerald-600 dark:text-emerald-400">A+</td><td>47.5</td><td>95</td><td>142.5</td><td>190</td><td>237.5</td><td>285</td></tr>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"><td class="py-2 px-1.5 font-bold">95 - 90</td><td class="font-bold text-blue-600 dark:text-blue-400">4</td><td class="font-extrabold text-emerald-600 dark:text-emerald-400">A</td><td>45</td><td>90</td><td>135</td><td>180</td><td>225</td><td>270</td></tr>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"><td class="py-2 px-1.5 font-bold">90 - 85</td><td class="font-bold text-blue-600 dark:text-blue-400">3.6</td><td class="font-extrabold text-teal-600 dark:text-teal-400">A-</td><td>42.5</td><td>85</td><td>127.5</td><td>170</td><td>212.5</td><td>255</td></tr>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"><td class="py-2 px-1.5 font-bold">85 - 80</td><td class="font-bold text-blue-600 dark:text-blue-400">3.3</td><td class="font-extrabold text-blue-600 dark:text-blue-400">B+</td><td>40</td><td>80</td><td>120</td><td>160</td><td>200</td><td>240</td></tr>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"><td class="py-2 px-1.5 font-bold">80 - 75</td><td class="font-bold text-blue-600 dark:text-blue-400">3</td><td class="font-extrabold text-blue-600 dark:text-blue-400">B</td><td>37.5</td><td>75</td><td>112.5</td><td>150</td><td>187.5</td><td>225</td></tr>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"><td class="py-2 px-1.5 font-bold">75 - 72</td><td class="font-bold text-blue-600 dark:text-blue-400">2.7</td><td class="font-extrabold text-indigo-600 dark:text-indigo-400">B-</td><td>36</td><td>72</td><td>108</td><td>144</td><td>180</td><td>216</td></tr>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"><td class="py-2 px-1.5 font-bold">72 - 70</td><td class="font-bold text-blue-600 dark:text-blue-400">2.3</td><td class="font-extrabold text-yellow-600 dark:text-yellow-400">C+</td><td>35</td><td>70</td><td>105</td><td>140</td><td>175</td><td>210</td></tr>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"><td class="py-2 px-1.5 font-bold">70 - 65</td><td class="font-bold text-blue-600 dark:text-blue-400">2</td><td class="font-extrabold text-yellow-600 dark:text-yellow-400">C</td><td>32.5</td><td>65</td><td>97.5</td><td>130</td><td>162.5</td><td>195</td></tr>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"><td class="py-2 px-1.5 font-bold">65 - 63</td><td class="font-bold text-blue-600 dark:text-blue-400">1.7</td><td class="font-extrabold text-amber-600 dark:text-amber-400">C-</td><td>31.5</td><td>63</td><td>94.5</td><td>126</td><td>157.5</td><td>189</td></tr>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"><td class="py-2 px-1.5 font-bold">63 - 62</td><td class="font-bold text-blue-600 dark:text-blue-400">1.3</td><td class="font-extrabold text-orange-600 dark:text-orange-400">D+</td><td>31</td><td>62</td><td>93</td><td>124</td><td>155</td><td>186</td></tr>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"><td class="py-2 px-1.5 font-bold">62 - 60</td><td class="font-bold text-blue-600 dark:text-blue-400">1</td><td class="font-extrabold text-orange-600 dark:text-orange-400">D</td><td>30</td><td>60</td><td>90</td><td>120</td><td>150</td><td>180</td></tr>
+              <tr class="bg-red-50/80 dark:bg-red-950/40 text-red-900 dark:text-red-300"><td class="py-2 px-1.5 font-bold">أقل من 60%</td><td class="font-bold">Zero (0)</td><td class="font-extrabold text-red-600 dark:text-red-400">F (راسب)</td><td>أقل من 30</td><td>أقل من 60</td><td>أقل من 90</td><td>أقل من 120</td><td>أقل من 150</td><td>أقل من 180</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="px-4 sm:px-6 py-3 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 text-left">
+        <button onclick="closeModal('gradingScaleModal')" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition">
+          إغلاق
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- التذييل المميز Footer المطلوب -->
+  <footer class="mt-auto py-6 sm:py-8 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800 no-print transition-colors">
+    <div class="max-w-7xl mx-auto px-4 text-center">
+      
+      <!-- كبسولة التذييل مع تدرج لوني متحرك -->
+      <div class="inline-block p-[2px] rounded-full bg-gradient-to-r from-blue-600 via-purple-500 to-emerald-500 animate-gradient-shift shadow-lg shadow-purple-500/15 hover:scale-105 transition-transform duration-300">
+        <div class="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-slate-950 text-white">
+          <span class="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+          <span class="text-xs sm:text-sm font-bold tracking-wide font-mono">Vibe coded by mahmoud emad</span>
+          <i class="fa-solid fa-code text-blue-400 text-xs ml-1"></i>
+        </div>
+      </div>
+
+      <p class="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 mt-2">نظام حساب المعدل التراكمي وتوثيق سجلات الطلاب الجامعية &bull; جميع الحسابات مطابقة للائحة الرسمية</p>
+    </div>
+  </footer>
+
+  <!-- كود الجافاسكريبت المدمج والمنظم -->
+  <script>
+    // =========================================================================
+    // ⚙️ إعداد رابط Google Sheets يدويًا:
+    // انسخ رابط Google Apps Script Web App والصقه بين علامتي التنصيص أدناه:
+    // =========================================================================
+    const GOOGLE_SHEET_URL = ""; // ضع رابط تطبيق الويب هنا مثل: "https://script.google.com/macros/s/AKfycb.../exec"
+
+    /**
+     * جدول تقديرات الـ GPA الرسمي المعتمد من صورة "GPA Calculations - UNION"
+     */
+    const GRADING_SCALE = [
+      { min: 95, max: 100, grade: 'A+', points: 4.0, labelAr: 'ممتاز مرتفع' },
+      { min: 90, max: 95,  grade: 'A',  points: 4.0, labelAr: 'ممتاز' },
+      { min: 85, max: 90,  grade: 'A-', points: 3.6, labelAr: 'ممتاز منخفض' },
+      { min: 80, max: 85,  grade: 'B+', points: 3.3, labelAr: 'جيد جداً مرتفع' },
+      { min: 75, max: 80,  grade: 'B',  points: 3.0, labelAr: 'جيد جداً' },
+      { min: 72, max: 75,  grade: 'B-', points: 2.7, labelAr: 'جيد جداً منخفض' },
+      { min: 70, max: 72,  grade: 'C+', points: 2.3, labelAr: 'جيد مرتفع' },
+      { min: 65, max: 70,  grade: 'C',  points: 2.0, labelAr: 'جيد' },
+      { min: 63, max: 65,  grade: 'C-', points: 1.7, labelAr: 'مقبول مرتفع' },
+      { min: 62, max: 63,  grade: 'D+', points: 1.3, labelAr: 'مقبول متوسط' },
+      { min: 60, max: 62,  grade: 'D',  points: 1.0, labelAr: 'مقبول' },
+      { min: 0,  max: 60,  grade: 'F',  points: 0.0, labelAr: 'راسب' }
+    ];
+
+    // حالة التطبيق
+    let state = {
+      students: [],
+      courses: [],
+      currentStudentId: null,
+      currentGradeMode: 'mark'
+    };
+
+    // لتتبع القيم السابقة للعدادات الرقمية المتحركة
+    let previousStats = {
+      gpa: 0,
+      percentage: 0,
+      hours: 0,
+      points: 0
+    };
+
+    // تهيئة التطبيق عند فتح الصفحة
+    window.addEventListener('DOMContentLoaded', () => {
+      initThemeUI();
+      loadStateFromLocalStorage();
+      checkActiveSession();
+      renderQuickProfiles();
+    });
+
+    // إدارة الدارك مود مع أنيميشن التدوير
+    function initThemeUI() {
+      const isDark = document.documentElement.classList.contains('dark');
+      updateThemeIcon(isDark);
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      
+      const icon = document.getElementById('themeIcon');
+      if (icon) {
+        icon.classList.add('rotate-180');
+        setTimeout(() => icon.classList.remove('rotate-180'), 400);
+      }
+      
+      updateThemeIcon(isDark);
+    }
+
+    function updateThemeIcon(isDark) {
+      const icon = document.getElementById('themeIcon');
+      if (icon) {
+        if (isDark) {
+          icon.className = 'fa-solid fa-sun text-sm sm:text-base text-amber-400 transition-transform duration-500';
+        } else {
+          icon.className = 'fa-solid fa-moon text-sm sm:text-base text-slate-700 transition-transform duration-500';
+        }
+      }
+    }
+
+    // إطلاق أنيميشن الاحتفال (Confetti)
+    function triggerConfetti() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 70,
+          spread: 65,
+          origin: { y: 0.6 }
+        });
+        setTimeout(() => {
+          confetti({
+            particleCount: 40,
+            angle: 60,
+            spread: 50,
+            origin: { x: 0 }
+          });
+          confetti({
+            particleCount: 40,
+            angle: 120,
+            spread: 50,
+            origin: { x: 1 }
+          });
+        }, 180);
+      }
+    }
+
+    // عداد الأرقام السلس
+    function animateValue(elementId, start, end, duration, decimals = 2, suffix = '') {
+      const obj = document.getElementById(elementId);
+      if (!obj) return;
+      if (start === end) {
+        obj.textContent = end.toFixed(decimals) + suffix;
+        return;
+      }
+
+      const range = end - start;
+      const minTimer = 50;
+      let stepTime = Math.abs(Math.floor(duration / (range * 10)));
+      stepTime = Math.max(stepTime, minTimer);
+
+      const startTime = performance.now();
+
+      function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeProgress = 1 - (1 - progress) * (1 - progress);
+        const current = start + (range * easeProgress);
+
+        obj.textContent = current.toFixed(decimals) + suffix;
+
+        if (progress < 1) {
+          requestAnimationFrame(update);
+        } else {
+          obj.textContent = end.toFixed(decimals) + suffix;
+        }
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    // تحميل البيانات من LocalStorage
+    function loadStateFromLocalStorage() {
+      try {
+        const savedStudents = localStorage.getItem('gpa_students');
+        if (savedStudents) state.students = JSON.parse(savedStudents);
+
+        const savedCourses = localStorage.getItem('gpa_courses');
+        if (savedCourses) state.courses = JSON.parse(savedCourses);
+
+        const activeId = localStorage.getItem('gpa_active_student_id');
+        if (activeId) state.currentStudentId = activeId;
+      } catch (e) {
+        console.error('Error loading state from localStorage:', e);
+      }
+    }
+
+    // حفظ البيانات في LocalStorage
+    function saveStateToLocalStorage() {
+      localStorage.setItem('gpa_students', JSON.stringify(state.students));
+      localStorage.setItem('gpa_courses', JSON.stringify(state.courses));
+      if (state.currentStudentId) {
+        localStorage.setItem('gpa_active_student_id', state.currentStudentId);
+      } else {
+        localStorage.removeItem('gpa_active_student_id');
+      }
+    }
+
+    // التحقق من وجود جلسة طالب نشطة
+    function checkActiveSession() {
+      if (state.currentStudentId) {
+        const student = state.students.find(s => s.id === state.currentStudentId);
+        if (student) {
+          showDashboard(student);
+          return;
+        }
+      }
+      showLoginScreen();
+    }
+
+    // تبديل الواجهة إلى تسجيل الدخول
+    function showLoginScreen() {
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('dashboardScreen').classList.add('hidden');
+      renderNavbarAuth(null);
+      renderQuickProfiles();
+    }
+
+    // تبديل الواجهة إلى لوحة التحكم
+    function showDashboard(student) {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('dashboardScreen').classList.remove('hidden');
+      document.getElementById('currentStudentName').textContent = student.name;
+      renderNavbarAuth(student);
+      renderCourses();
+      calculateOverallStats();
+    }
+
+    // شريط التنقل للمستخدم الحالي مع تحسين للهواتف
+    function renderNavbarAuth(student) {
+      const authNav = document.getElementById('authNavSection');
+      if (!student) {
+        authNav.innerHTML = '';
+        return;
+      }
+      authNav.innerHTML = `
+        <div class="flex items-center gap-1.5 sm:gap-2 pl-1 sm:pl-2 border-r border-slate-200 dark:border-slate-800">
+          <div class="text-right hidden sm:block">
+            <div class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">${escapeHtml(student.name)}</div>
+            <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center justify-end gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> نشط
+            </div>
+          </div>
+          <button onclick="handleLogout()" title="تبديل الطالب / تسجيل الخروج" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/60 hover:text-red-600 dark:hover:text-red-400 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs transition active:scale-95">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+          </button>
+        </div>
+      `;
+    }
+
+    // التبديل بين تبويبات تسجيل الدخول وإنشاء حساب
+    function switchAuthTab(tab) {
+      const loginForm = document.getElementById('loginForm');
+      const registerForm = document.getElementById('registerForm');
+      const tabLoginBtn = document.getElementById('tabLoginBtn');
+      const tabRegisterBtn = document.getElementById('tabRegisterBtn');
+
+      if (tab === 'login') {
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+        tabLoginBtn.className = 'flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-sm';
+        tabRegisterBtn.className = 'flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+      } else {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+        tabRegisterBtn.className = 'flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-sm';
+        tabLoginBtn.className = 'flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+      }
+    }
+
+    // معالجة تسجيل الدخول
+    function handleLogin(e) {
+      e.preventDefault();
+      const name = document.getElementById('loginName').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      const student = state.students.find(s => s.name.toLowerCase() === name.toLowerCase());
+
+      if (!student) {
+        alert('لم يتم العثور على طالب بهذا الاسم. يرجى التأكد من الاسم أو إنشاء بروفايل جديد.');
+        return;
+      }
+
+      if (student.password !== password) {
+        alert('كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى.');
+        return;
+      }
+
+      state.currentStudentId = student.id;
+      saveStateToLocalStorage();
+      showDashboard(student);
+    }
+
+    // معالجة إنشاء بروفايل جديد
+    function handleRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById('regName').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const confirmPassword = document.getElementById('regPasswordConfirm').value;
+
+      if (password !== confirmPassword) {
+        alert('كلمتا المرور غير متطابقتين.');
+        return;
+      }
+
+      const existing = state.students.find(s => s.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        alert('يوجد بروفايل مسجل بهذا الاسم بالفعل، يمكنك تسجيل الدخول مباشرة.');
+        switchAuthTab('login');
+        document.getElementById('loginName').value = name;
+        return;
+      }
+
+      const newStudent = {
+        id: 'std_' + Date.now(),
+        name: name,
+        password: password,
+        createdAt: new Date().toISOString()
+      };
+
+      state.students.push(newStudent);
+      state.currentStudentId = newStudent.id;
+      saveStateToLocalStorage();
+      
+      if (GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.trim() !== "") {
+        syncWithGoogleSheet(true);
+      }
+
+      showDashboard(newStudent);
+      triggerConfetti();
+    }
+
+    // تسجيل الخروج
+    function handleLogout() {
+      state.currentStudentId = null;
+      localStorage.removeItem('gpa_active_student_id');
+      showLoginScreen();
+    }
+
+    // عرض البروفايلات السريعة
+    function renderQuickProfiles() {
+      const container = document.getElementById('quickProfilesContainer');
+      const list = document.getElementById('quickProfilesList');
+      if (!state.students || state.students.length === 0) {
+        container.classList.add('hidden');
+        return;
+      }
+      container.classList.remove('hidden');
+      list.innerHTML = state.students.map(s => `
+        <button type="button" onclick="selectQuickProfile('${escapeHtml(s.name)}')" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:text-blue-700 dark:hover:text-blue-300 text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 active:scale-95 transition">
+          <i class="fa-solid fa-user-graduate text-[10px] text-blue-500"></i>
+          <span>${escapeHtml(s.name)}</span>
+        </button>
+      `).join('');
+    }
+
+    function selectQuickProfile(name) {
+      document.getElementById('loginName').value = name;
+      document.getElementById('loginPassword').focus();
+    }
+
+    // حساب الدرجة والتقدير بدقة من النسبة المئوية
+    function getGradeFromPercentage(percentage) {
+      const p = Math.round(percentage * 100) / 100;
+      for (const item of GRADING_SCALE) {
+        if (p >= item.min) {
+          return item;
+        }
+      }
+      return GRADING_SCALE[GRADING_SCALE.length - 1]; // F
+    }
+
+    // الحصول على بيانات التقدير من الحرف
+    function getGradeInfoFromLetter(letter) {
+      const found = GRADING_SCALE.find(g => g.grade === letter);
+      return found || GRADING_SCALE[GRADING_SCALE.length - 1];
+    }
+
+    // إدارة طرق إدخال الدرجة في النافذة المنبثقة
+    function setGradeInputMode(mode) {
+      state.currentGradeMode = mode;
+      
+      const btnMark = document.getElementById('modeMarkBtn');
+      const btnPerc = document.getElementById('modePercBtn');
+      const btnLetter = document.getElementById('modeLetterBtn');
+
+      const fieldMark = document.getElementById('inputFieldMark');
+      const fieldPerc = document.getElementById('inputFieldPerc');
+      const fieldLetter = document.getElementById('inputFieldLetter');
+
+      const activeClass = 'py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold rounded-lg border bg-blue-600 text-white border-blue-600 shadow-sm transition';
+      const inactiveClass = 'py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold rounded-lg border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 transition';
+
+      btnMark.className = mode === 'mark' ? activeClass : inactiveClass;
+      btnPerc.className = mode === 'percentage' ? activeClass : inactiveClass;
+      btnLetter.className = mode === 'letter' ? activeClass : inactiveClass;
+
+      fieldMark.classList.toggle('hidden', mode !== 'mark');
+      fieldPerc.classList.toggle('hidden', mode !== 'percentage');
+      fieldLetter.classList.toggle('hidden', mode !== 'letter');
+
+      if (mode === 'mark') calculateGradeFromMark();
+      else if (mode === 'percentage') calculateGradeFromPercentage();
+      else calculateGradeFromLetter();
+    }
+
+    function onCreditHoursChanged() {
+      const hours = Number(document.getElementById('courseCreditHours').value) || 3;
+      const maxMark = hours * 50;
+      document.getElementById('maxMarkDisplay').textContent = maxMark;
+
+      if (state.currentGradeMode === 'mark') {
+        calculateGradeFromMark();
+      } else if (state.currentGradeMode === 'percentage') {
+        calculateGradeFromPercentage();
+      } else {
+        calculateGradeFromLetter();
+      }
+    }
+
+    function calculateGradeFromMark() {
+      const hours = Number(document.getElementById('courseCreditHours').value) || 3;
+      const maxMark = hours * 50;
+      const mark = parseFloat(document.getElementById('inputMark').value);
+
+      if (isNaN(mark) || mark < 0) {
+        updateModalPreview('--', 0, 0);
+        return;
+      }
+
+      const percentage = (mark / maxMark) * 100;
+      const gradeInfo = getGradeFromPercentage(percentage);
+      const qualityPoints = (gradeInfo.points * hours).toFixed(2);
+      
+      updateModalPreview(gradeInfo.grade, gradeInfo.points, qualityPoints);
+    }
+
+    function calculateGradeFromPercentage() {
+      const hours = Number(document.getElementById('courseCreditHours').value) || 3;
+      const perc = parseFloat(document.getElementById('inputPercentage').value);
+
+      if (isNaN(perc) || perc < 0) {
+        updateModalPreview('--', 0, 0);
+        return;
+      }
+
+      const gradeInfo = getGradeFromPercentage(perc);
+      const qualityPoints = (gradeInfo.points * hours).toFixed(2);
+      updateModalPreview(gradeInfo.grade, gradeInfo.points, qualityPoints);
+    }
+
+    function calculateGradeFromLetter() {
+      const hours = Number(document.getElementById('courseCreditHours').value) || 3;
+      const letter = document.getElementById('inputLetter').value;
+      const gradeInfo = getGradeInfoFromLetter(letter);
+      const qualityPoints = (gradeInfo.points * hours).toFixed(2);
+      updateModalPreview(gradeInfo.grade, gradeInfo.points, qualityPoints);
+    }
+
+    function updateModalPreview(grade, points, qualityPoints) {
+      document.getElementById('previewGrade').textContent = grade;
+      document.getElementById('previewPoints').textContent = points;
+      document.getElementById('previewQualityPoints').textContent = qualityPoints;
+    }
+
+    // حفظ مادة (إضافة أو تعديل)
+    function saveCourse(e) {
+      e.preventDefault();
+      if (!state.currentStudentId) return;
+
+      const courseId = document.getElementById('courseEditId').value;
+      const courseName = document.getElementById('courseName').value.trim();
+      const creditHours = Number(document.getElementById('courseCreditHours').value);
+      const semester = document.getElementById('courseSemester').value;
+      const maxMark = creditHours * 50;
+
+      let mark = 0;
+      let percentage = 0;
+      let grade = 'F';
+      let points = 0;
+
+      if (state.currentGradeMode === 'mark') {
+        mark = parseFloat(document.getElementById('inputMark').value) || 0;
+        percentage = (mark / maxMark) * 100;
+        const info = getGradeFromPercentage(percentage);
+        grade = info.grade;
+        points = info.points;
+      } else if (state.currentGradeMode === 'percentage') {
+        percentage = parseFloat(document.getElementById('inputPercentage').value) || 0;
+        mark = (percentage / 100) * maxMark;
+        const info = getGradeFromPercentage(percentage);
+        grade = info.grade;
+        points = info.points;
+      } else {
+        grade = document.getElementById('inputLetter').value;
+        const info = getGradeInfoFromLetter(grade);
+        points = info.points;
+        percentage = info.min;
+        mark = (percentage / 100) * maxMark;
+      }
+
+      const courseData = {
+        id: courseId ? courseId : 'crs_' + Date.now(),
+        studentId: state.currentStudentId,
+        courseName,
+        creditHours,
+        semester,
+        mark: Math.round(mark * 10) / 10,
+        maxMark,
+        percentage: Math.round(percentage * 10) / 10,
+        grade,
+        points
+      };
+
+      if (courseId) {
+        const idx = state.courses.findIndex(c => c.id === courseId);
+        if (idx !== -1) state.courses[idx] = courseData;
+      } else {
+        state.courses.push(courseData);
+      }
+
+      saveStateToLocalStorage();
+      closeModal('addCourseModal');
+      renderCourses();
+      calculateOverallStats();
+
+      if (grade === 'A+' || grade === 'A') {
+        triggerConfetti();
+      }
+
+      if (GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.trim() !== "") {
+        syncWithGoogleSheet(true);
+      }
+    }
+
+    // فتح نافذة الإضافة
+    function openAddCourseModal() {
+      document.getElementById('courseEditId').value = '';
+      document.getElementById('courseModalTitle').innerHTML = '<i class="fa-solid fa-book-medical text-blue-600 dark:text-blue-400"></i> إضافة مادة دراسية جديدة';
+      document.getElementById('courseName').value = '';
+      document.getElementById('courseCreditHours').value = '3';
+      document.getElementById('courseSemester').value = 'الفصل 1';
+      document.getElementById('inputMark').value = '';
+      document.getElementById('inputPercentage').value = '';
+      document.getElementById('inputLetter').value = 'A+';
+      onCreditHoursChanged();
+      setGradeInputMode('mark');
+      openModal('addCourseModal');
+    }
+
+    // فتح نافذة التعديل
+    function editCourse(id) {
+      const course = state.courses.find(c => c.id === id);
+      if (!course) return;
+
+      document.getElementById('courseEditId').value = course.id;
+      document.getElementById('courseModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-600 dark:text-blue-400"></i> تعديل المادة الدراسية';
+      document.getElementById('courseName').value = course.courseName;
+      document.getElementById('courseCreditHours').value = course.creditHours;
+      document.getElementById('courseSemester').value = course.semester || 'الفصل 1';
+      document.getElementById('inputMark').value = course.mark;
+      document.getElementById('inputPercentage').value = course.percentage;
+      document.getElementById('inputLetter').value = course.grade;
+
+      onCreditHoursChanged();
+      setGradeInputMode('mark');
+      openModal('addCourseModal');
+    }
+
+    // حذف مادة
+    function deleteCourse(id) {
+      if (!confirm('هل أنت متأكد من رغبتك في حذف هذه المادة؟')) return;
+      state.courses = state.courses.filter(c => c.id !== id);
+      saveStateToLocalStorage();
+      renderCourses();
+      calculateOverallStats();
+      
+      if (GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.trim() !== "") {
+        syncWithGoogleSheet(true);
+      }
+    }
+
+    // تصفية المواد وعرضها
+    function filterCourses() {
+      renderCourses();
+    }
+
+    // عرض المواد - يدعم بطاقات الموبايل الذكية + جدول الشاشات الكبيرة
+    function renderCourses() {
+      if (!state.currentStudentId) return;
+
+      const semester = document.getElementById('semesterFilter').value;
+      let studentCourses = state.courses.filter(c => c.studentId === state.currentStudentId);
+
+      if (semester !== 'ALL') {
+        studentCourses = studentCourses.filter(c => c.semester === semester);
+      }
+
+      const emptyState = document.getElementById('emptyCoursesState');
+      const tableWrapper = document.getElementById('coursesTableWrapper');
+      const tbody = document.getElementById('coursesTableBody');
+      const mobileCardsContainer = document.getElementById('coursesMobileCardsList');
+
+      if (studentCourses.length === 0) {
+        emptyState.classList.remove('hidden');
+        tableWrapper.classList.add('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      tableWrapper.classList.remove('hidden');
+
+      // 1. توليد بطاقات الموبايل (Mobile Cards View)
+      if (mobileCardsContainer) {
+        mobileCardsContainer.innerHTML = studentCourses.map((c, i) => {
+          const qualityPoints = (c.creditHours * c.points).toFixed(2);
+          const gradeColorClass = getGradeBadgeColor(c.grade);
+          const delay = (i * 0.04).toFixed(2);
+
+          return `
+            <div class="bg-slate-50/90 dark:bg-slate-800/60 rounded-2xl p-3.5 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5 shadow-sm course-row-animate transition-all" style="animation-delay: ${delay}s">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-mono font-bold">${i + 1}</span>
+                  <h4 class="font-bold text-slate-800 dark:text-slate-100 text-sm truncate max-w-[170px] sm:max-w-none">${escapeHtml(c.courseName)}</h4>
+                </div>
+                <span class="px-2.5 py-0.5 rounded-lg text-xs font-extrabold ${gradeColorClass}">${c.grade}</span>
+              </div>
+
+              <div class="grid grid-cols-4 gap-1.5 p-2 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-100 dark:border-slate-800 text-center">
+                <div>
+                  <div class="text-[10px] text-slate-400 font-medium">الساعات</div>
+                  <div class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-0.5">${c.creditHours} س</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400 font-medium">الدرجة</div>
+                  <div class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-0.5">${c.mark}</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400 font-medium">النسبة</div>
+                  <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">${c.percentage}%</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400 font-medium">النقاط</div>
+                  <div class="text-xs font-bold text-blue-600 dark:text-blue-400 mt-0.5 font-mono">${qualityPoints}</div>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between pt-1 border-t border-slate-200/50 dark:border-slate-700/50 text-xs">
+                <span class="px-2 py-0.5 rounded-md bg-slate-200/60 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-semibold">${escapeHtml(c.semester || 'الفصل 1')}</span>
+                <div class="flex items-center gap-2">
+                  <button onclick="editCourse('${c.id}')" class="px-3 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1 active:scale-95 transition text-xs">
+                    <i class="fa-solid fa-pen text-[10px]"></i> تعديل
+                  </button>
+                  <button onclick="deleteCourse('${c.id}')" class="px-3 py-1 rounded-lg bg-red-50 dark:bg-red-950/70 text-red-600 dark:text-red-400 font-semibold flex items-center gap-1 active:scale-95 transition text-xs">
+                    <i class="fa-solid fa-trash text-[10px]"></i> حذف
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 2. توليد جدول الديسك توب (Desktop Table View)
+      if (tbody) {
+        tbody.innerHTML = studentCourses.map((c, i) => {
+          const qualityPoints = (c.creditHours * c.points).toFixed(2);
+          const gradeColorClass = getGradeBadgeColor(c.grade);
+          const delay = (i * 0.04).toFixed(2);
+
+          return `
+            <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-all duration-200 group course-row-animate" style="animation-delay: ${delay}s">
+              <td class="py-3.5 px-3 text-slate-400 dark:text-slate-500 font-mono text-xs">${i + 1}</td>
+              <td class="py-3.5 px-3">
+                <span class="font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">${escapeHtml(c.courseName)}</span>
+              </td>
+              <td class="py-3.5 px-3">
+                <span class="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold">${escapeHtml(c.semester || 'الفصل 1')}</span>
+              </td>
+              <td class="py-3.5 px-3 text-center font-bold text-slate-700 dark:text-slate-300">${c.creditHours}</td>
+              <td class="py-3.5 px-3 text-center font-semibold text-slate-600 dark:text-slate-400">${c.mark} / ${c.maxMark}</td>
+              <td class="py-3.5 px-3 text-center font-bold text-slate-700 dark:text-slate-300">${c.percentage}%</td>
+              <td class="py-3.5 px-3 text-center">
+                <span class="px-2.5 py-1 rounded-lg text-xs font-extrabold ${gradeColorClass} transition-transform group-hover:scale-105 inline-block">${c.grade}</span>
+              </td>
+              <td class="py-3.5 px-3 text-center font-bold text-blue-600 dark:text-blue-400">${c.points.toFixed(1)}</td>
+              <td class="py-3.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400 font-mono">${qualityPoints}</td>
+              <td class="py-3.5 px-3 text-center no-print">
+                <div class="flex items-center justify-center gap-1 opacity-90 group-hover:opacity-100">
+                  <button onclick="editCourse('${c.id}')" title="تعديل" class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs transition-all hover:scale-110 active:scale-95">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  <button onclick="deleteCourse('${c.id}')" title="حذف" class="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/60 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 flex items-center justify-center text-xs transition-all hover:scale-110 active:scale-95">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    function getGradeBadgeColor(grade) {
+      if (grade.startsWith('A')) return 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
+      if (grade.startsWith('B')) return 'bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
+      if (grade.startsWith('C')) return 'bg-yellow-100 dark:bg-yellow-950/70 text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800';
+      if (grade.startsWith('D')) return 'bg-orange-100 dark:bg-orange-950/70 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800';
+      return 'bg-red-100 dark:bg-red-950/70 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800';
+    }
+
+    // حساب المعدل التراكمي الشامل والإحصائيات
+    function calculateOverallStats() {
+      if (!state.currentStudentId) return;
+
+      const studentCourses = state.courses.filter(c => c.studentId === state.currentStudentId);
+
+      let totalRegisteredHours = 0;
+      let totalEarnedHours = 0;
+      let totalQualityPoints = 0;
+      let totalEarnedMarks = 0;
+      let totalMaxMarks = 0;
+
+      studentCourses.forEach(c => {
+        totalRegisteredHours += c.creditHours;
+        if (c.grade !== 'F') {
+          totalEarnedHours += c.creditHours;
+        }
+        totalQualityPoints += (c.creditHours * c.points);
+        totalEarnedMarks += c.mark;
+        totalMaxMarks += c.maxMark;
+      });
+
+      const targetGPA = totalRegisteredHours > 0 ? (totalQualityPoints / totalRegisteredHours) : 0;
+      const targetPerc = totalMaxMarks > 0 ? ((totalEarnedMarks / totalMaxMarks) * 100) : 0;
+
+      animateValue('statGPA', previousStats.gpa, targetGPA, 700, 2);
+      animateValue('statPercentage', previousStats.percentage, targetPerc, 700, 1, '%');
+      animateValue('statCompletedHours', previousStats.hours, totalEarnedHours, 600, 0);
+      animateValue('statTotalPoints', previousStats.points, totalQualityPoints, 700, 1);
+
+      const gpaBar = document.getElementById('statGPABar');
+      if (gpaBar) {
+        const percOfGPA = Math.min((targetGPA / 4.0) * 100, 100);
+        gpaBar.style.width = percOfGPA + '%';
+      }
+
+      const percBar = document.getElementById('statPercBar');
+      if (percBar) {
+        percBar.style.width = Math.min(targetPerc, 100) + '%';
+      }
+
+      previousStats.gpa = targetGPA;
+      previousStats.percentage = targetPerc;
+      previousStats.hours = totalEarnedHours;
+      previousStats.points = totalQualityPoints;
+
+      document.getElementById('statTotalCourses').textContent = `${studentCourses.length}`;
+      document.getElementById('statMarksSummary').textContent = `${totalEarnedMarks.toFixed(1)} / ${totalMaxMarks}`;
+
+      const standing = getOverallStanding(targetGPA);
+      document.getElementById('statStanding').textContent = standing.text;
+      document.getElementById('statGradeLetter').textContent = standing.letter;
+    }
+
+    function getOverallStanding(gpa) {
+      if (gpa >= 3.6) return { text: 'ممتاز مرتفع', letter: 'A+' };
+      if (gpa >= 3.4) return { text: 'ممتاز', letter: 'A' };
+      if (gpa >= 3.0) return { text: 'جيد جداً مرتفع', letter: 'B+' };
+      if (gpa >= 2.7) return { text: 'جيد جداً', letter: 'B' };
+      if (gpa >= 2.3) return { text: 'جيد مرتفع', letter: 'C+' };
+      if (gpa >= 2.0) return { text: 'جيد', letter: 'C' };
+      if (gpa >= 1.5) return { text: 'مقبول', letter: 'D' };
+      if (gpa > 0) return { text: 'إنذار أكاديمي', letter: 'F' };
+      return { text: 'لم تحدد مواد', letter: '-' };
+    }
+
+    // مزامنة Google Sheets باستخدام الرابط اليدوي
+    async function syncWithGoogleSheet(silent = false) {
+      const url = GOOGLE_SHEET_URL.trim();
+      if (!url) {
+        if (!silent) {
+          alert('تنبيه: لم يتم وضع رابط Google Sheets بعد!\nيرجى فتح ملف index.html ووضع الرابط داخل المتغير GOOGLE_SHEET_URL في بداية كود الجافاسكريبت.');
+        }
+        return;
+      }
+
+      const syncIcon = document.getElementById('syncIcon');
+      if (syncIcon) syncIcon.classList.add('fa-spin');
+
+      try {
+        const payload = {
+          action: 'syncAll',
+          students: state.students,
+          courses: state.courses
+        };
+
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!silent) {
+          alert('تم إرسال ومزامنة البيانات مع Google Sheets بنجاح! 🎉');
+        }
+      } catch (err) {
+        console.error('Error syncing with Google Sheets:', err);
+        if (!silent) {
+          alert('تعذر الاتصال بـ Google Sheets، تأكد من صحة الرابط المنشور وصلاحيات الوصول.');
+        }
+      } finally {
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+      }
+    }
+
+    // طباعة التقرير والسجل الأكاديمي
+    function printReport() {
+      window.print();
+    }
+
+    // النوافذ المنبثقة Modals
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    // حماية ضد ثغرات XSS
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
