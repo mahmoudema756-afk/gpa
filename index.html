@@ -749,6 +749,11 @@
       loadStateFromLocalStorage();
       checkActiveSession();
       renderQuickProfiles();
+
+      // جلب بيانات الطلاب والمواد تلقائياً من Google Sheets لدعم الدخول من أي جهاز آخر
+      if (GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.trim() !== '') {
+        loadDataFromCloud();
+      }
     });
 
     // إدارة الدارك مود مع أنيميشن التدوير
@@ -939,17 +944,108 @@
       }
     }
 
-    // معالجة تسجيل الدخول
-    function handleLogin(e) {
+    // جلب ومزامنة الطلاب والمواد تلقائياً من Google Sheets لدعم الدخول من أي جهاز
+    async function loadDataFromCloud() {
+      const url = GOOGLE_SHEET_URL.trim();
+      if (!url) return false;
+
+      try {
+        const fetchUrl = url + (url.includes('?') ? '&' : '?') + 'action=getAll&_t=' + Date.now();
+        const res = await fetch(fetchUrl);
+        const data = await res.json();
+
+        if (data && data.success) {
+          let updated = false;
+
+          // مزامنة حسابات الطلاب القادمة من السحابة
+          if (Array.isArray(data.students) && data.students.length > 0) {
+            data.students.forEach(cs => {
+              const existingIdx = state.students.findIndex(s => s.id === cs.id || s.name.toLowerCase() === cs.name.toLowerCase());
+              if (existingIdx !== -1) {
+                state.students[existingIdx] = { ...state.students[existingIdx], ...cs };
+              } else {
+                state.students.push(cs);
+              }
+            });
+            updated = true;
+          }
+
+          // مزامنة المواد والدرجات القادمة من السحابة
+          if (Array.isArray(data.courses) && data.courses.length > 0) {
+            data.courses.forEach(cc => {
+              const existingIdx = state.courses.findIndex(c => c.id === cc.id);
+              if (existingIdx !== -1) {
+                state.courses[existingIdx] = { ...state.courses[existingIdx], ...cc };
+              } else {
+                state.courses.push(cc);
+              }
+            });
+            updated = true;
+          }
+
+          if (updated) {
+            saveStateToLocalStorage();
+            renderQuickProfiles();
+
+            if (state.currentStudentId) {
+              const activeStudent = state.students.find(s => s.id === state.currentStudentId);
+              if (activeStudent) {
+                renderCourses();
+                calculateOverallStats();
+              }
+            }
+          }
+          return true;
+        }
+      } catch (err) {
+        console.warn('Google Sheets cloud fetch skipped/offline:', err);
+      }
+      return false;
+    }
+
+    // معالجة تسجيل الدخول مع دعم التحقق السحابي في حال الدخول من جهاز جديد
+    async function handleLogin(e) {
       e.preventDefault();
       const name = document.getElementById('loginName').value.trim();
       const password = document.getElementById('loginPassword').value;
 
-      const student = state.students.find(s => s.name.toLowerCase() === name.toLowerCase());
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+
+      // البحث أولاً في الذاكرة المحلية للجهاز
+      let student = state.students.find(s => s.name.toLowerCase() === name.toLowerCase());
+
+      // إذا لم يكن مسجلاً في هذا الجهاز، نبحث عنه مباشرة في Google Sheets
+      if (!student && GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.trim() !== '') {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down fa-spin ml-2"></i> جاري التحقق من السحابة...';
+        }
+        await loadDataFromCloud();
+        student = state.students.find(s => s.name.toLowerCase() === name.toLowerCase());
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
+      }
 
       if (!student) {
-        alert('لم يتم العثور على طالب بهذا الاسم. يرجى التأكد من الاسم أو إنشاء بروفايل جديد.');
+        alert('لم يتم العثور على طالب بهذا الاسم.\nيرجى التأكد من كتابة الاسم بدقة كما سجلته أو إنشاء بروفايل جديد.');
         return;
+      }
+
+      // إذا كانت كلمة المرور غير مطابقة، نتأكد من جلب أحدث كلمة سر من السحابة
+      if (student.password !== password && GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.trim() !== '') {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin ml-2"></i> جاري التحقق من كلمة المرور...';
+        }
+        await loadDataFromCloud();
+        student = state.students.find(s => s.name.toLowerCase() === name.toLowerCase());
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
       }
 
       if (student.password !== password) {
@@ -963,7 +1059,7 @@
     }
 
     // معالجة إنشاء بروفايل جديد
-    function handleRegister(e) {
+    async function handleRegister(e) {
       e.preventDefault();
       const name = document.getElementById('regName').value.trim();
       const password = document.getElementById('regPassword').value;
@@ -974,9 +1070,25 @@
         return;
       }
 
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+
+      // التحقق من السحابة أولاً لمنع تكرار الاسم
+      if (GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.trim() !== '') {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down fa-spin ml-2"></i> جاري فحص السحابة...';
+        }
+        await loadDataFromCloud();
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
+      }
+
       const existing = state.students.find(s => s.name.toLowerCase() === name.toLowerCase());
       if (existing) {
-        alert('يوجد بروفايل مسجل بهذا الاسم بالفعل، يمكنك تسجيل الدخول مباشرة.');
+        alert('يوجد بروفايل مسجل بهذا الاسم بالفعل في النظام أو في Google Sheets! يمكنك تسجيل الدخول مباشرة.');
         switchAuthTab('login');
         document.getElementById('loginName').value = name;
         return;
@@ -1006,6 +1118,11 @@
       state.currentStudentId = null;
       localStorage.removeItem('gpa_active_student_id');
       showLoginScreen();
+
+      // تحديث قائمة الطلاب من السحابة بعد الخروج
+      if (GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.trim() !== "") {
+        loadDataFromCloud();
+      }
     }
 
     // عرض البروفايلات السريعة
