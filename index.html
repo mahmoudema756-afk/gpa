@@ -706,9 +706,8 @@
   <script>
     // =========================================================================
     // ⚙️ إعداد رابط Google Sheets يدويًا:
-    // انسخ رابط Google Apps Script Web App والصقه بين علامتي التنصيص أدناه:
     // =========================================================================
-    const GOOGLE_SHEET_URL = ""; // ضع رابط تطبيق الويب هنا مثل: "https://script.google.com/macros/s/AKfycb.../exec"
+    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwz9oamGBnrbaNXidCdI5S7F4esUqU-0Bz6C1E3kjNyf1GWbqOkzxT8GZ2UXAXBAC2a/exec";
 
     /**
      * جدول تقديرات الـ GPA الرسمي المعتمد من صورة "GPA Calculations - UNION"
@@ -1462,26 +1461,51 @@
       if (syncIcon) syncIcon.classList.add('fa-spin');
 
       try {
+        // حساب الـ GPA وساعات كل طالب لتسجيلها جاهزة في الشيت
+        const studentsWithStats = state.students.map(s => {
+          const studentCourses = state.courses.filter(c => c.studentId === s.id);
+          let totalRegisteredHours = 0;
+          let totalEarnedHours = 0;
+          let totalQualityPoints = 0;
+          studentCourses.forEach(c => {
+            totalRegisteredHours += c.creditHours;
+            if (c.grade !== 'F') totalEarnedHours += c.creditHours;
+            totalQualityPoints += (c.creditHours * c.points);
+          });
+          const gpa = totalRegisteredHours > 0 ? (totalQualityPoints / totalRegisteredHours) : 0;
+          return {
+            id: s.id,
+            name: s.name,
+            password: s.password,
+            createdAt: s.createdAt || new Date().toISOString(),
+            gpa: Number(gpa.toFixed(2)),
+            totalHours: totalEarnedHours
+          };
+        });
+
         const payload = {
           action: 'syncAll',
-          students: state.students,
+          students: studentsWithStats,
           courses: state.courses
         };
 
+        // إرسال كـ text/plain لضمان قبول CORS والتسليم الموثوق لـ Google Apps Script
         await fetch(url, {
           method: 'POST',
           mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+          },
           body: JSON.stringify(payload)
         });
 
         if (!silent) {
-          alert('تم إرسال ومزامنة البيانات مع Google Sheets بنجاح! 🎉');
+          alert('تم إرسال ومزامنة جميع البيانات والدرجات مع Google Sheets بنجاح! ☁️🎉');
         }
       } catch (err) {
         console.error('Error syncing with Google Sheets:', err);
         if (!silent) {
-          alert('تعذر الاتصال بـ Google Sheets، تأكد من صحة الرابط المنشور وصلاحيات الوصول.');
+          alert('تعذر الاتصال بـ Google Sheets، تأكد من اتصال الإنترنت وصلاحيات الرابط.');
         }
       } finally {
         if (syncIcon) syncIcon.classList.remove('fa-spin');
